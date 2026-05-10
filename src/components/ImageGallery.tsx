@@ -1,8 +1,8 @@
-import { AdvancedImage, lazyload, responsive, placeholder } from '@cloudinary/react';
 import { cld } from '../cloudinary/config';
 import { format, quality } from '@cloudinary/url-gen/actions/delivery';
 import { auto } from '@cloudinary/url-gen/qualifiers/format';
 import { auto as autoQuality } from '@cloudinary/url-gen/qualifiers/quality';
+import { generativeRecolor } from '@cloudinary/url-gen/actions/effect';
 import './ImageGallery.css';
 
 interface ImageGalleryProps {
@@ -14,11 +14,19 @@ export function ImageGallery({ images }: ImageGalleryProps) {
     <div className="gallery-container">
       <div className="gallery-grid">
         {images.map((publicId, index) => {
-          const img = cld.image(publicId)
-            .delivery(format(auto()))
-            .delivery(quality(autoQuality()));
+          // Generate the exact URL with f_auto,q_auto
+          let imageBuilder = cld.image(publicId);
 
-          // Ensure Cloudinary knows how to render it properly by giving it a responsive layout
+          // Apply the AI recolor ONLY to images likely to have shirts to avoid breaking the others
+          if (publicId.includes('people') || publicId.includes('shirt')) {
+            imageBuilder = imageBuilder.effect(generativeRecolor('shirt', 'ffdfed'));
+          }
+
+          const imgUrl = imageBuilder
+            .delivery(format(auto()))
+            .delivery(quality(autoQuality()))
+            .toURL();
+
           return (
             <div 
               key={`${publicId}-${index}`} 
@@ -26,15 +34,11 @@ export function ImageGallery({ images }: ImageGalleryProps) {
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="image-wrapper">
-                <AdvancedImage
-                  cldImg={img}
-                  plugins={[
-                    lazyload({ rootMargin: '50px', threshold: 0.1 }),
-                    responsive({ steps: 200 }),
-                    placeholder({ mode: 'blur' })
-                  ]}
+                <img
+                  src={imgUrl}
+                  loading="lazy"
                   className="gallery-image"
-                  alt={publicId}
+                  alt={publicId.split('/').pop()?.replace(/-/g, ' ') || 'Gallery image'}
                 />
                 <div className="gallery-overlay">
                   <div className="overlay-content">
